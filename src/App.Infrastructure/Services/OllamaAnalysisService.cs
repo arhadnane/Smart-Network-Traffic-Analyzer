@@ -13,40 +13,48 @@ public sealed class OllamaAnalysisService : IOllamaAnalysisService
     public OllamaAnalysisService(HttpClient httpClient)
     {
         _httpClient = httpClient;
-        _httpClient.Timeout = TimeSpan.FromSeconds(30);
+        _httpClient.Timeout = TimeSpan.FromMinutes(2); // Augmenté à 2 minutes pour les modèles lents
     }
 
     public async Task<string> AnalyzeConnectionAsync(string remoteIp, string processName, string hostname, string country, CancellationToken ct = default)
     {
         try
         {
+            Console.WriteLine($"[Ollama] Début analyse pour {remoteIp} ({processName})");
             var prompt = CreateAnalysisPrompt(remoteIp, processName, hostname, country);
             var response = await CallOllamaAsync(prompt, ct);
+            Console.WriteLine($"[Ollama] Analyse terminée pour {remoteIp}");
             return response;
+        }
+        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+        {
+            Console.WriteLine($"[Ollama] Timeout pour {remoteIp}");
+            return "⏱️ Timeout Ollama: L'analyse prend trop de temps. Essayez un modèle plus rapide (llama3.2:1b).";
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.WriteLine($"[Ollama] Erreur HTTP: {ex.Message}");
+            return "🔌 Ollama non disponible: Vérifiez qu'Ollama est démarré (localhost:11434).";
         }
         catch (Exception ex)
         {
-            return $"❌ Erreur d'analyse Ollama: {ex.Message}";
+            Console.WriteLine($"[Ollama] Erreur générale: {ex.Message}");
+            return $"❌ Erreur d'analyse: {ex.Message}";
         }
     }
 
     private string CreateAnalysisPrompt(string remoteIp, string processName, string hostname, string country)
     {
-        return $@"Analyse cette connexion réseau et fournis une analyse détaillée en français :
+        return $@"Analyse rapide en français (max 200 mots):
 
-📡 **Connexion Réseau**
-• IP: {remoteIp}
-• Processus: {processName}
-• Hostname: {hostname ?? "Non résolu"}
-• Pays: {country ?? "Non déterminé"}
+IP: {remoteIp} | Process: {processName} | Host: {hostname ?? "?"} | Pays: {country ?? "?"}
 
-Fournis une analyse structurée avec :
-1. **Résumé** : Description simple de cette connexion
-2. **Évaluation sécurité** : Niveau de risque (Faible/Moyen/Élevé) et pourquoi
-3. **Analyse processus** : Ce que fait ce processus typiquement
-4. **Recommandations** : Actions recommandées si nécessaire
+Fournis:
+1. Type de service (Google, CDN, etc.)
+2. Risque: Faible/Moyen/Élevé
+3. Recommandation (1 phrase)
 
-Réponds en français, sois concis mais informatif (max 300 mots).";
+Sois concis et direct.";
     }
 
     private async Task<string> CallOllamaAsync(string prompt, CancellationToken ct)
@@ -58,8 +66,11 @@ Réponds en français, sois concis mais informatif (max 300 mots).";
             stream = false,
             options = new
             {
-                temperature = 0.3,
-                num_predict = 300
+                temperature = 0.1, // Plus déterministe
+                num_predict = 200, // Limité à 200 tokens
+                top_k = 10,        // Réduit l'espace de recherche
+                top_p = 0.5,       // Plus focalisé
+                num_ctx = 1024     // Contexte réduit pour être plus rapide
             }
         };
 
