@@ -27,7 +27,7 @@
                 <ColumnDefinition Width="420"/>
             </Grid.ColumnDefinitions>
 
-        <DataGrid Grid.Column="0" ItemsSource="{Binding Connections}" AutoGenerateColumns="False" IsReadOnly="True" Name="grid">
+        <DataGrid Grid.Column="0" ItemsSource="{Binding Connections}" AutoGenerateColumns="False" IsReadOnly="True" Name="grid" SelectedItem="{Binding SelectedConnection}">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="#" Binding="{Binding SequentialId}" Width="50"/>
                     <DataGridTextColumn Header="FirstSeen" Binding="{Binding FirstSeen}"/>
@@ -52,17 +52,46 @@
                 </Grid.RowDefinitions>
                 <oxy:PlotView Grid.Row="0" Model="{Binding BandwidthModel}" />
                 <Border Grid.Row="1" BorderBrush="#ddd" BorderThickness="1" Padding="8">
-                    <StackPanel>
-                        <TextBlock Text="Details" FontWeight="Bold"/>
-                        <TextBlock>
-                            <Run Text="Hostname: "/>
-                            <Run Text="{Binding ElementName=grid, Path=SelectedItem.Hostname}"/>
-                        </TextBlock>
-                        <TextBlock>
-                            <Run Text="Country: "/>
-                            <Run Text="{Binding ElementName=grid, Path=SelectedItem.Country}"/>
-                        </TextBlock>
-                    </StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock Text="📋 Détails de connexion" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
+                            
+                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                <TextBlock Text="🌐 IP: " FontWeight="SemiBold" MinWidth="80"/>
+                                <TextBlock Text="{Binding ElementName=grid, Path=SelectedItem.RemoteIp}"/>
+                            </StackPanel>
+                            
+                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                <TextBlock Text="🏠 Hostname: " FontWeight="SemiBold" MinWidth="80"/>
+                                <TextBlock Text="{Binding ElementName=grid, Path=SelectedItem.Hostname}"/>
+                            </StackPanel>
+                            
+                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                <TextBlock Text="🌍 Pays: " FontWeight="SemiBold" MinWidth="80"/>
+                                <TextBlock Text="{Binding ElementName=grid, Path=SelectedItem.Country}"/>
+                            </StackPanel>
+                            
+                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                <TextBlock Text="⚙️ Processus: " FontWeight="SemiBold" MinWidth="80"/>
+                                <TextBlock Text="{Binding ElementName=grid, Path=SelectedItem.ProcessName}"/>
+                            </StackPanel>
+                            
+                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                <TextBlock Text="⚠️ Risque: " FontWeight="SemiBold" MinWidth="80"/>
+                                <TextBlock Text="{Binding ElementName=grid, Path=SelectedItem.Risk}"/>
+                            </StackPanel>
+                            
+                            <Separator Margin="0,8"/>
+                            
+                            <TextBlock Text="🤖 Analyse Ollama" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
+                            <Border Background="#f8f9fa" BorderBrush="#dee2e6" BorderThickness="1" Padding="8" CornerRadius="4">
+                                <TextBlock Text="{Binding ElementName=grid, Path=SelectedItem.OllamaAnalysis}" 
+                                          TextWrapping="Wrap" 
+                                          FontFamily="Segoe UI"
+                                          LineHeight="20"/>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
                 </Border>
             </Grid>
         </Grid>

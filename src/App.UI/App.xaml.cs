@@ -30,6 +30,7 @@ public partial class App : Application
 		}));
 	sc.AddSingleton<IGeoService, IpApiGeoService>();
 	sc.AddSingleton<IConnectionMonitor, WindowsTcpConnectionMonitor>();
+	sc.AddSingleton<IOllamaAnalysisService>(sp => new OllamaAnalysisService(new System.Net.Http.HttpClient()));
 
 		Services = sc.BuildServiceProvider();
 

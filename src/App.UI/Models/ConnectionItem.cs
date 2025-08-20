@@ -9,6 +9,7 @@ public sealed class ConnectionItem : INotifyPropertyChanged
     private string? _hostname;
     private string? _country;
     private RiskLevel _risk;
+    private string? _ollamaAnalysis;
 
     public ConnectionItem(Connection c)
     {
@@ -57,6 +58,12 @@ public sealed class ConnectionItem : INotifyPropertyChanged
     {
         get => _country;
         set { if (_country != value) { _country = value; Raise(); } }
+    }
+
+    public string? OllamaAnalysis
+    {
+        get => _ollamaAnalysis;
+        set { if (_ollamaAnalysis != value) { _ollamaAnalysis = value; Raise(); } }
     }
 
     public string BytesInFormatted => FormatBytes(BytesIn);

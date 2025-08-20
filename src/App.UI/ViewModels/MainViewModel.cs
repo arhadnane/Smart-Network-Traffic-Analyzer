@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows.Input;
 using Microsoft.Extensions.DependencyInjection;
 using OxyPlot;
 using OxyPlot.Axes;
@@ -17,10 +18,29 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly IDnsResolver _dns;
     private readonly IReputationService _rep;
     private readonly IGeoService _geo;
+    private readonly IOllamaAnalysisService _ollama;
     private CancellationTokenSource? _cts;
+    private ConnectionItem? _selectedConnection;
 
     public ObservableCollection<ConnectionItem> Connections { get; } = new();
     public PlotModel BandwidthModel { get; } = new PlotModel { Title = "Live Bandwidth" };
+
+    public ConnectionItem? SelectedConnection
+    {
+        get => _selectedConnection;
+        set 
+        { 
+            if (_selectedConnection != value) 
+            { 
+                _selectedConnection = value; 
+                Raise();
+                if (value != null && string.IsNullOrEmpty(value.OllamaAnalysis))
+                {
+                    _ = Task.Run(() => AnalyzeConnectionWithOllamaAsync(value));
+                }
+            } 
+        }
+    }
 
     public MainViewModel(IConnectionMonitor monitor, IDnsResolver dns, IReputationService rep)
     {
@@ -28,6 +48,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         _dns = dns;
         _rep = rep;
         _geo = SmartNetworkTrafficAnalyzer.UI.App.Services.GetRequiredService<IGeoService>();
+        _ollama = SmartNetworkTrafficAnalyzer.UI.App.Services.GetRequiredService<IOllamaAnalysisService>();
         SetupChart();
         _ = StartMonitoringAsync();
     }
@@ -118,6 +139,49 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private LineSeries _series = null!;
     private DateTimeAxis _timeAxis = null!;
+
+    private async Task AnalyzeConnectionWithOllamaAsync(ConnectionItem connection)
+    {
+        try
+        {
+            // Vérifier que c'est une IP publique qui mérite l'analyse
+            if (IsPublicIP(connection.RemoteIp))
+            {
+                var analysis = await _ollama.AnalyzeConnectionAsync(
+                    connection.RemoteIp, 
+                    connection.ProcessName, 
+                    connection.Hostname, 
+                    connection.Country);
+
+                // Update UI on main thread
+                await System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+                {
+                    connection.OllamaAnalysis = analysis;
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            await System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+            {
+                connection.OllamaAnalysis = $"❌ Erreur d'analyse: {ex.Message}";
+            });
+        }
+    }
+
+    private static bool IsPublicIP(string ip)
+    {
+        if (!System.Net.IPAddress.TryParse(ip, out var address)) return false;
+        
+        // Skip private ranges
+        var bytes = address.GetAddressBytes();
+        return address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && !(
+            (bytes[0] == 10) ||
+            (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
+            (bytes[0] == 192 && bytes[1] == 168) ||
+            (bytes[0] == 127));
+    }
+
     private void SetupChart()
     {
         _timeAxis = new DateTimeAxis { Position = AxisPosition.Bottom, StringFormat = "HH:mm:ss" };
