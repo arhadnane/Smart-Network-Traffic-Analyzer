@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/launch.json",
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": ".NET Launch App.UI",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build:Release",
+      "program": "${workspaceFolder}/src/App.UI/bin/Release/net8.0-windows/SmartNetworkTrafficAnalyzer.UI.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build:Release",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "SmartNetworkTrafficAnalyzer.sln",
+        "-c",
+        "Release"
+      ],
+      "group": "build",
+      "problemMatcher": ["$msCompile"]
+    },
+    {
+      "label": "restore",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "restore",
+        "SmartNetworkTrafficAnalyzer.sln"
+      ],
+      "problemMatcher": ["$msCompile"]
+    },
+    {
+      "label": "run:UI",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "src/App.UI/App.UI.csproj"
+      ],
+      "isBackground": false,
+      "problemMatcher": ["$msCompile"]
+    }
+  ]
+}
