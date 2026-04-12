@@ -4,12 +4,17 @@ using SmartNetworkTrafficAnalyzer.Core.Models;
 
 namespace SmartNetworkTrafficAnalyzer.UI.Models;
 
+/// <summary>
+/// UI-friendly wrapper for a Connection with bindable enrichment properties.
+/// </summary>
 public sealed class ConnectionItem : INotifyPropertyChanged
 {
     private string? _hostname;
     private string? _country;
     private RiskLevel _risk;
     private string? _ollamaAnalysis;
+    private int _securityScore;
+    private string _securityCategory = string.Empty;
 
     public ConnectionItem(Connection c)
     {
@@ -45,8 +50,18 @@ public sealed class ConnectionItem : INotifyPropertyChanged
     public RiskLevel Risk
     {
         get => _risk;
-        set { if (_risk != value) { _risk = value; Raise(); } }
+        set { if (_risk != value) { _risk = value; Raise(); Raise(nameof(RiskDisplay)); } }
     }
+
+    public string RiskDisplay => Risk switch
+    {
+        RiskLevel.Clean => "✅ Clean",
+        RiskLevel.Low => "🟢 Low",
+        RiskLevel.Medium => "🟡 Medium",
+        RiskLevel.High => "🟠 High",
+        RiskLevel.Malicious => "🔴 Malicious",
+        _ => "❓ Unknown"
+    };
 
     public string? Hostname
     {
@@ -66,23 +81,44 @@ public sealed class ConnectionItem : INotifyPropertyChanged
         set { if (_ollamaAnalysis != value) { _ollamaAnalysis = value; Raise(); } }
     }
 
+    public int SecurityScore
+    {
+        get => _securityScore;
+        set { if (_securityScore != value) { _securityScore = value; Raise(); Raise(nameof(SecurityLevel)); } }
+    }
+
+    public string SecurityCategory
+    {
+        get => _securityCategory;
+        set { if (_securityCategory != value) { _securityCategory = value; Raise(); } }
+    }
+
+    public string SecurityLevel => _securityScore switch
+    {
+        >= 90 => "✅ Sûr",
+        >= 70 => "🟢 Légitime",
+        >= 50 => "🟡 Neutre",
+        >= 25 => "🟠 Suspect",
+        _ => "🔴 Dangereux"
+    };
+
     public string BytesInFormatted => FormatBytes(BytesIn);
     public string BytesOutFormatted => FormatBytes(BytesOut);
 
     private static string FormatBytes(long bytes)
     {
         if (bytes == 0) return "0 B";
-        
+
         string[] sizes = { "B", "KB", "MB", "GB", "TB" };
         int order = 0;
         double size = bytes;
-        
+
         while (size >= 1024 && order < sizes.Length - 1)
         {
             order++;
             size /= 1024;
         }
-        
+
         return $"{size:0.##} {sizes[order]}";
     }
 

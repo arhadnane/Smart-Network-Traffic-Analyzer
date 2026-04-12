@@ -4,11 +4,19 @@ using SmartNetworkTrafficAnalyzer.Core.Abstractions;
 
 namespace SmartNetworkTrafficAnalyzer.Infrastructure.Services;
 
+/// <summary>
+/// DNS resolver using the system's built-in reverse DNS lookup.
+/// </summary>
 public sealed class SystemDnsResolver : IDnsResolver
 {
     public async Task<string?> ReverseLookupAsync(string ip, CancellationToken ct)
     {
-        if (!IPAddress.TryParse(ip, out var address)) return null;
+        ArgumentException.ThrowIfNullOrWhiteSpace(ip);
+        if (!IPAddress.TryParse(ip, out var address))
+        {
+            return null;
+        }
+
         try
         {
             var hostEntry = await Dns.GetHostEntryAsync(address);

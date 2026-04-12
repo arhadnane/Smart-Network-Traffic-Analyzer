@@ -1,5 +1,8 @@
 namespace SmartNetworkTrafficAnalyzer.Core.Abstractions;
 
+/// <summary>
+/// Structured logging abstraction for the application.
+/// </summary>
 public interface ILoggingService
 {
     void Info(string message);

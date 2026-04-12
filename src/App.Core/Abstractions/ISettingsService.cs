@@ -1,5 +1,8 @@
 namespace SmartNetworkTrafficAnalyzer.Core.Abstractions;
 
+/// <summary>
+/// Simple key-value settings store.
+/// </summary>
 public interface ISettingsService
 {
     T Get<T>(string key, T @default);

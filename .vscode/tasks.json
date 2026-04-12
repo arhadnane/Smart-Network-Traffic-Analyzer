@@ -6,12 +6,15 @@
       "label": "build:Release",
       "type": "shell",
       "command": "dotnet",
-      "args": [
-        "build",
-        "SmartNetworkTrafficAnalyzer.sln",
-        "-c",
-        "Release"
-      ],
+      "args": ["build", "SmartNetworkTrafficAnalyzer.sln", "-c", "Release"],
+      "group": "build",
+      "problemMatcher": ["$msCompile"]
+    },
+    {
+      "label": "build:Debug",
+      "type": "shell",
+      "command": "dotnet",
+      "args": ["build", "SmartNetworkTrafficAnalyzer.sln"],
       "group": "build",
       "problemMatcher": ["$msCompile"]
     },
@@ -19,21 +22,36 @@
       "label": "restore",
       "type": "shell",
       "command": "dotnet",
-      "args": [
-        "restore",
-        "SmartNetworkTrafficAnalyzer.sln"
-      ],
+      "args": ["restore", "SmartNetworkTrafficAnalyzer.sln"],
+      "problemMatcher": ["$msCompile"]
+    },
+    {
+      "label": "test",
+      "type": "shell",
+      "command": "dotnet",
+      "args": ["test", "SmartNetworkTrafficAnalyzer.sln", "--verbosity", "normal"],
+      "group": "test",
+      "problemMatcher": ["$msCompile"]
+    },
+    {
+      "label": "format",
+      "type": "shell",
+      "command": "dotnet",
+      "args": ["format", "SmartNetworkTrafficAnalyzer.sln"],
+      "problemMatcher": ["$msCompile"]
+    },
+    {
+      "label": "format:verify",
+      "type": "shell",
+      "command": "dotnet",
+      "args": ["format", "SmartNetworkTrafficAnalyzer.sln", "--verify-no-changes"],
       "problemMatcher": ["$msCompile"]
     },
     {
       "label": "run:UI",
       "type": "shell",
       "command": "dotnet",
-      "args": [
-        "run",
-        "--project",
-        "src/App.UI/App.UI.csproj"
-      ],
+      "args": ["run", "--project", "src/App.UI/App.UI.csproj"],
       "isBackground": false,
       "problemMatcher": ["$msCompile"]
     }

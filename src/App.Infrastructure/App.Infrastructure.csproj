@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\App.Core\App.Core.csproj" />
@@ -8,8 +8,10 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-  <RootNamespace>SmartNetworkTrafficAnalyzer.Infrastructure</RootNamespace>
-  <AssemblyName>SmartNetworkTrafficAnalyzer.Infrastructure</AssemblyName>
+    <RootNamespace>SmartNetworkTrafficAnalyzer.Infrastructure</RootNamespace>
+    <AssemblyName>SmartNetworkTrafficAnalyzer.Infrastructure</AssemblyName>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
   </PropertyGroup>
 
   <ItemGroup>

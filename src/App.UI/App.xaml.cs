@@ -1,7 +1,3 @@
-﻿using System.Configuration;
-using System.Data;
-using System.Windows;
-
 using Microsoft.Extensions.DependencyInjection;
 using SmartNetworkTrafficAnalyzer.Core.Abstractions;
 using SmartNetworkTrafficAnalyzer.Infrastructure.Services;
@@ -9,33 +5,59 @@ using SmartNetworkTrafficAnalyzer.Infrastructure.Services;
 namespace SmartNetworkTrafficAnalyzer.UI;
 
 /// <summary>
-/// Interaction logic for App.xaml
+/// Application entry point with dependency injection configuration.
 /// </summary>
 public partial class App : Application
 {
-	public static IServiceProvider Services { get; private set; } = default!;
+    public static IServiceProvider Services { get; private set; } = default!;
 
-	protected override void OnStartup(StartupEventArgs e)
-	{
-		base.OnStartup(e);
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
 
-		var sc = new ServiceCollection();
-		sc.AddSingleton<ISettingsService, InMemorySettingsService>();
-		sc.AddSingleton<ILoggingService, ConsoleLoggingService>();
-	sc.AddSingleton<IDnsResolver, SystemDnsResolver>();
-		sc.AddSingleton<BlocklistReputationService>();
-		sc.AddSingleton<IReputationService>(sp => new AggregatedReputationService(new IReputationService[]
-		{
-			sp.GetRequiredService<BlocklistReputationService>()
-		}));
-	sc.AddSingleton<IGeoService, IpApiGeoService>();
-	sc.AddSingleton<IConnectionMonitor, WindowsTcpConnectionMonitor>();
-	sc.AddSingleton<IOllamaAnalysisService>(sp => new OllamaAnalysisService(new System.Net.Http.HttpClient()));
+        var services = new ServiceCollection();
 
-		Services = sc.BuildServiceProvider();
+        // Core services
+        services.AddSingleton<ISettingsService, InMemorySettingsService>();
+        services.AddSingleton<ILoggingService, ConsoleLoggingService>();
 
-		var main = new MainWindow();
-		main.Show();
-	}
+        // Network services
+        services.AddSingleton<IDnsResolver, SystemDnsResolver>();
+        services.AddSingleton<IConnectionMonitor, WindowsTcpConnectionMonitor>();
+
+        // Reputation services
+        services.AddSingleton<BlocklistReputationService>();
+        services.AddSingleton<IReputationService>(sp =>
+        {
+            var blocklist = sp.GetRequiredService<BlocklistReputationService>();
+            var logger = sp.GetRequiredService<ILoggingService>();
+            return new AggregatedReputationService(new IReputationService[] { blocklist }, logger);
+        });
+
+        // Geo service
+        services.AddSingleton<IGeoService>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILoggingService>();
+            return new IpApiGeoService(new HttpClient(), logger);
+        });
+
+        // Security services
+        services.AddSingleton<IIPCategorizationService, SimpleIPCategorizationService>();
+        services.AddSingleton<ISecurityScoringService, SimpleSecurityScoringService>();
+        services.AddSingleton<IAnomalyDetectionService, SimpleAnomalyDetectionService>();
+        services.AddSingleton<ISecurityAnalysisService, SecurityAnalysisService>();
+        services.AddSingleton<ThreatIntelligenceService>();
+
+        // Ollama AI analysis
+        services.AddSingleton<IOllamaAnalysisService>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILoggingService>();
+            return new OllamaAnalysisService(new HttpClient(), logger);
+        });
+
+        Services = services.BuildServiceProvider();
+
+        var main = new MainWindow();
+        main.Show();
+    }
 }
-
