@@ -72,7 +72,7 @@ public class AggregatedReputationServiceTests
     {
         var throwingProvider = new ThrowingReputationService();
         var workingProvider = new StubReputationService();
-        var service = new AggregatedReputationService(new[] { throwingProvider, workingProvider }, _logger);
+        var service = new AggregatedReputationService(new IReputationService[] { throwingProvider, workingProvider }, _logger);
         var result = await service.CheckAsync("1.1.1.1", CancellationToken.None);
         // Should still get a result from the working provider
         Assert.NotEqual(DateTimeOffset.MinValue, result.LastChecked);
@@ -241,7 +241,8 @@ public class SimpleSecurityScoringServiceTests
     public async Task CalculateScoreAsync_KnownGoodService_HighScore()
     {
         var category = new IPCategory("Google Services", "Known CDN", RiskLevel.Low, IsKnownGood: true);
-        var score = await _service.CalculateScoreAsync("8.8.8.8", category, Array.Empty<SecurityAlert>());
+        var context = new SecurityScoringContext("8.8.8.8", "chrome.exe", 443, 1000);
+        var score = await _service.CalculateScoreAsync(context, category, Array.Empty<SecurityAlert>());
         Assert.True(score.Value >= 80);
     }
 
@@ -249,7 +250,8 @@ public class SimpleSecurityScoringServiceTests
     public async Task CalculateScoreAsync_UnknownService_MidScore()
     {
         var category = new IPCategory("Unknown", "No info", RiskLevel.Clean);
-        var score = await _service.CalculateScoreAsync("1.2.3.4", category, Array.Empty<SecurityAlert>());
+        var context = new SecurityScoringContext("1.2.3.4", "app.exe", 443, 1000);
+        var score = await _service.CalculateScoreAsync(context, category, Array.Empty<SecurityAlert>());
         Assert.Equal(50, score.Value);
     }
 
@@ -261,7 +263,8 @@ public class SimpleSecurityScoringServiceTests
         {
             new SecurityAlert(AlertType.VolumeAnomaly, RiskLevel.High, "Vol", "High", DateTime.UtcNow)
         };
-        var score = await _service.CalculateScoreAsync("1.2.3.4", category, alerts);
+        var context = new SecurityScoringContext("1.2.3.4", "app.exe", 443, 1000);
+        var score = await _service.CalculateScoreAsync(context, category, alerts);
         Assert.True(score.Value < 50);
     }
 }
@@ -273,7 +276,7 @@ public class SimpleAnomalyDetectionServiceTests
     [Fact]
     public async Task CheckAnomaliesAsync_HighVolume_ReturnsAlert()
     {
-        var alerts = await _service.CheckAnomaliesAsync("1.2.3.4", "test", 200_000_000, DateTime.UtcNow);
+        var alerts = await _service.CheckAnomaliesAsync("1.2.3.4", "test", 443, 200_000_000, DateTime.UtcNow);
         Assert.NotEmpty(alerts);
         Assert.Contains(alerts, a => a.Type == AlertType.VolumeAnomaly && a.Severity == RiskLevel.High);
     }
@@ -281,26 +284,25 @@ public class SimpleAnomalyDetectionServiceTests
     [Fact]
     public async Task CheckAnomaliesAsync_NormalVolume_NoAlert()
     {
-        var alerts = await _service.CheckAnomaliesAsync("1.2.3.4", "chrome", 5000, DateTime.UtcNow);
+        var alerts = await _service.CheckAnomaliesAsync("1.2.3.4", "chrome", 443, 5000, DateTime.UtcNow);
         Assert.Empty(alerts);
     }
 
     [Fact]
     public async Task CheckAnomaliesAsync_SuspiciousProcess_ReturnsAlert()
     {
-        var alerts = await _service.CheckAnomaliesAsync("1.2.3.4", "unknown_temp.exe", 100, DateTime.UtcNow);
+        var alerts = await _service.CheckAnomaliesAsync("1.2.3.4", "unknown_temp.exe", 443, 100, DateTime.UtcNow);
         Assert.Contains(alerts, a => a.Type == AlertType.SuspiciousProcess);
     }
 }
 
 public class ThreatIntelligenceServiceTests
 {
-    private readonly ThreatIntelligenceService _service = new();
 
     [Fact]
     public async Task GetThreatIntelligenceAsync_KnownBadIP_ReturnsThreat()
     {
-        var result = await _service.GetThreatIntelligenceAsync("185.220.100.240");
+        var result = await ThreatIntelligenceService.GetThreatIntelligenceAsync("185.220.100.240");
         Assert.NotNull(result);
         Assert.Contains("Tor", result);
     }
@@ -308,7 +310,7 @@ public class ThreatIntelligenceServiceTests
     [Fact]
     public async Task GetThreatIntelligenceAsync_SuspiciousRange_ReturnsThreat()
     {
-        var result = await _service.GetThreatIntelligenceAsync("185.220.101.1");
+        var result = await ThreatIntelligenceService.GetThreatIntelligenceAsync("185.220.101.1");
         Assert.NotNull(result);
         Assert.Contains("Tor", result);
     }
@@ -316,14 +318,14 @@ public class ThreatIntelligenceServiceTests
     [Fact]
     public async Task GetThreatIntelligenceAsync_CleanIP_ReturnsNull()
     {
-        var result = await _service.GetThreatIntelligenceAsync("8.8.8.8");
+        var result = await ThreatIntelligenceService.GetThreatIntelligenceAsync("8.8.8.8");
         Assert.Null(result);
     }
 
     [Fact]
     public async Task GetThreatIntelligenceAsync_NullOrEmptyIP_Throws()
     {
-        await Assert.ThrowsAsync<ArgumentException>(() => _service.GetThreatIntelligenceAsync(""));
-        await Assert.ThrowsAsync<ArgumentException>(() => _service.GetThreatIntelligenceAsync(null!));
+        await Assert.ThrowsAsync<ArgumentException>(() => ThreatIntelligenceService.GetThreatIntelligenceAsync(""));
+        await Assert.ThrowsAsync<ArgumentException>(() => ThreatIntelligenceService.GetThreatIntelligenceAsync(null!));
     }
 }

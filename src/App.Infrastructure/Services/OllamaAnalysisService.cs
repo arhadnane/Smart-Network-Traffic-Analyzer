@@ -15,7 +15,7 @@ public sealed class OllamaAnalysisService : IOllamaAnalysisService
     private readonly string _ollamaUrl;
     private readonly string _model;
 
-    public OllamaAnalysisService(HttpClient httpClient, ILoggingService logger, string ollamaUrl = "http://localhost:11434", string model = "phi3:mini")
+    public OllamaAnalysisService(HttpClient httpClient, ILoggingService logger, string ollamaUrl = "http://localhost:11434", string model = "glm-5.1:cloud")
     {
         _httpClient = httpClient;
         _httpClient.Timeout = TimeSpan.FromMinutes(2);
@@ -72,16 +72,18 @@ public sealed class OllamaAnalysisService : IOllamaAnalysisService
 
     private static string CreateAnalysisPrompt(string remoteIp, string processName, string hostname, string country)
     {
-        return $"""Analyse rapide en français (max 200 mots):
+        return $"""
+            Analyse rapide en français (max 200 mots):
 
-IP: {remoteIp} | Process: {processName} | Host: {hostname ?? "N/A"} | Pays: {country ?? "N/A"}
+            IP: {remoteIp} | Process: {processName} | Host: {hostname ?? "N/A"} | Pays: {country ?? "N/A"}
 
-Fournis:
-1. Type de service (Google, CDN, etc.)
-2. Risque: Faible/Moyen/Élevé
-3. Recommandation (1 phrase)
+            Fournis:
+            1. Type de service (Google, CDN, etc.)
+            2. Risque: Faible/Moyen/Élevé
+            3. Recommandation (1 phrase)
 
-Sois concis et direct.""";
+            Sois concis et direct.
+            """;
     }
 
     private async Task<string> CallOllamaAsync(string prompt, CancellationToken ct)

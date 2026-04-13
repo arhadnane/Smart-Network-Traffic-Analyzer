@@ -12,6 +12,7 @@
     <AssemblyName>SmartNetworkTrafficAnalyzer.Infrastructure</AssemblyName>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <NoWarn>CA1806</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

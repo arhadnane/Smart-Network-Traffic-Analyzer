@@ -8,7 +8,7 @@ namespace SmartNetworkTrafficAnalyzer.Infrastructure.Services;
 /// </summary>
 public sealed class SimpleIPCategorizationService : IIPCategorizationService
 {
-    private static readonly IReadOnlyDictionary<string, string> KnownExactIPs = new Dictionary<string, string>
+    private static readonly Dictionary<string, string> KnownExactIPs = new()
     {
         ["8.8.8.8"] = "DNS Public (Google)",
         ["1.1.1.1"] = "DNS Public (Cloudflare)",
@@ -67,9 +67,15 @@ public sealed class SimpleSecurityScoringService : ISecurityScoringService
     private const int MaxScore = 100;
     private const int MinScore = 0;
 
-    public Task<SecurityScore> CalculateScoreAsync(string ipAddress, IPCategory category, SecurityAlert[] alerts, CancellationToken ct = default)
+    private static readonly HashSet<int> StandardPorts = new() { 80, 443, 53, 22, 21, 25, 110, 143, 993, 995, 587, 8080, 8443 };
+    private static readonly string[] SuspiciousProcessTokens = { "unknown", "temp", ".tmp", "svchost", "powershell", "cmd" };
+
+    public Task<SecurityScore> CalculateScoreAsync(SecurityScoringContext context, IPCategory category, SecurityAlert[] alerts, CancellationToken ct = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(ipAddress);
+        if (ct.IsCancellationRequested)
+            return Task.FromCanceled<SecurityScore>(ct);
+
+        ArgumentNullException.ThrowIfNull(context);
 
         var score = BaseScore;
         var factors = new Dictionary<string, double>();
@@ -84,24 +90,48 @@ public sealed class SimpleSecurityScoringService : ISecurityScoringService
                 _ => 15
             };
             score += bonus;
-            factors["CategoryBonus"] = bonus;
+            factors["Services de confiance"] = bonus;
         }
         else if (category.IsKnownBad)
         {
             score -= 40;
-            factors["CategoryPenalty"] = -40;
+            factors["Categorie dangereuse"] = -40;
+        }
+
+        // Port analysis
+        if (!StandardPorts.Contains(context.Port))
+        {
+            score -= 10;
+            factors["Port non standard"] = -10;
+        }
+
+        // Process analysis
+        var lowerProcess = context.ProcessName.ToLowerInvariant();
+        if (SuspiciousProcessTokens.Any(t => lowerProcess.Contains(t)))
+        {
+            score -= 15;
+            factors["Processus suspect"] = -15;
+        }
+
+        // Volume analysis
+        if (context.BytesOut > 100_000_000)
+        {
+            score -= 20;
+            factors["Volume eleve"] = -20;
         }
 
         // Alert adjustments
-        var alertPenalty = alerts.Length switch
+        if (alerts.Length > 0)
         {
-            0 => 0,
-            1 => -10,
-            2 => -20,
-            _ => -35
-        };
-        score += alertPenalty;
-        factors["AlertPenalty"] = alertPenalty;
+            var alertPenalty = alerts.Length switch
+            {
+                1 => -10,
+                2 => -20,
+                _ => -35
+            };
+            score += alertPenalty;
+            factors["Alertes securite"] = alertPenalty;
+        }
 
         // Risk level override from alerts
         var worstAlertSeverity = alerts
@@ -116,7 +146,7 @@ public sealed class SimpleSecurityScoringService : ISecurityScoringService
             ? $"{category.Name} is a known legitimate service"
             : category.IsKnownBad
                 ? $"{category.Name} is flagged as dangerous"
-                : $"IP {ipAddress} has no known reputation";
+                : $"IP {context.IpAddress} has no known reputation";
 
         return Task.FromResult(new SecurityScore(finalScore, level, explanation, factors));
     }
@@ -148,14 +178,14 @@ public sealed class SimpleAnomalyDetectionService : IAnomalyDetectionService
     private readonly List<ConnectionRecord> _recentConnections = new();
     private const int MaxRecentConnections = 1000;
 
-    private record ConnectionRecord(string RemoteIp, string ProcessName, long BytesOut, DateTime Timestamp);
+    private sealed record ConnectionRecord(string RemoteIp, string ProcessName, long BytesOut, DateTime Timestamp);
 
     public SimpleAnomalyDetectionService(ILoggingService logger)
     {
         _logger = logger;
     }
 
-    public void RecordConnection(string remoteIp, string processName, long bytesOut, DateTime connectionTime)
+    public void RecordConnection(string remoteIp, string processName, int port, long bytesOut, DateTime connectionTime)
     {
         _recentConnections.Add(new ConnectionRecord(remoteIp, processName, bytesOut, connectionTime));
         if (_recentConnections.Count > MaxRecentConnections)
@@ -164,7 +194,7 @@ public sealed class SimpleAnomalyDetectionService : IAnomalyDetectionService
         }
     }
 
-    public Task<SecurityAlert[]> CheckAnomaliesAsync(string remoteIp, string processName, long bytesOut, DateTime connectionTime, CancellationToken ct = default)
+    public Task<SecurityAlert[]> CheckAnomaliesAsync(string remoteIp, string processName, int port, long bytesOut, DateTime connectionTime, CancellationToken ct = default)
     {
         var alerts = new List<SecurityAlert>();
 
@@ -182,7 +212,7 @@ public sealed class SimpleAnomalyDetectionService : IAnomalyDetectionService
 
         // Suspicious process
         var lowerProcess = processName.ToLowerInvariant();
-        if (lowerProcess.Contains("unknown") || lowerProcess.Contains("temp") || lowerProcess.EndsWith(".tmp"))
+        if (lowerProcess.Contains("unknown") || lowerProcess.Contains("temp") || lowerProcess.EndsWith(".tmp", StringComparison.Ordinal))
         {
             alerts.Add(new SecurityAlert(AlertType.SuspiciousProcess, RiskLevel.High, "Processus suspect",
                 $"Processus suspect détecté: {processName}", connectionTime, remoteIp, processName));
@@ -220,11 +250,12 @@ public sealed class SecurityAnalysisService : ISecurityAnalysisService
         _anomalyDetection = anomalyDetection;
     }
 
-    public async Task<SecurityAnalysisResult> AnalyzeConnectionAsync(string remoteIp, string processName, int port, long bytesOut, CancellationToken ct = default)
+    public async Task<SecurityAnalysisResult> AnalyzeConnectionAsync(string remoteIp, string processName, int port, long bytesOut, DateTime connectionTime, CancellationToken ct = default)
     {
         var category = await _categorization.CategorizeAsync(remoteIp, ct);
-        var alerts = await _anomalyDetection.CheckAnomaliesAsync(remoteIp, processName, bytesOut, DateTime.UtcNow, ct);
-        var score = await _scoring.CalculateScoreAsync(remoteIp, category, alerts, ct);
+        var alerts = await _anomalyDetection.CheckAnomaliesAsync(remoteIp, processName, port, bytesOut, connectionTime, ct);
+        var context = new SecurityScoringContext(remoteIp, processName, port, bytesOut);
+        var score = await _scoring.CalculateScoreAsync(context, category, alerts, ct);
 
         var summary = score.Level switch
         {
@@ -245,7 +276,7 @@ public sealed class SecurityAnalysisService : ISecurityAnalysisService
 /// </summary>
 public sealed class ThreatIntelligenceService
 {
-    private static readonly IReadOnlyDictionary<string, string> KnownBadIPs = new Dictionary<string, string>
+    private static readonly Dictionary<string, string> KnownBadIPs = new()
     {
         ["185.220.100.240"] = "Nœud de sortie Tor (AbuseIPDB)",
         ["45.142.214.191"] = "Botnet C&C détecté (VirusTotal)",
@@ -261,7 +292,7 @@ public sealed class ThreatIntelligenceService
         ("45.142.", "Infrastructure malveillante")
     ];
 
-    public Task<string?> GetThreatIntelligenceAsync(string ipAddress)
+    public static Task<string?> GetThreatIntelligenceAsync(string ipAddress)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(ipAddress);
 

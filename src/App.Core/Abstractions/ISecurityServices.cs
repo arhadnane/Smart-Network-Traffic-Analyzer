@@ -7,7 +7,7 @@ namespace SmartNetworkTrafficAnalyzer.Core.Abstractions;
 /// </summary>
 public interface ISecurityAnalysisService
 {
-    Task<SecurityAnalysisResult> AnalyzeConnectionAsync(string remoteIp, string processName, int port, long bytesOut, CancellationToken ct = default);
+    Task<SecurityAnalysisResult> AnalyzeConnectionAsync(string remoteIp, string processName, int port, long bytesOut, DateTime connectionTime, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -15,8 +15,8 @@ public interface ISecurityAnalysisService
 /// </summary>
 public interface IAnomalyDetectionService
 {
-    Task<SecurityAlert[]> CheckAnomaliesAsync(string remoteIp, string processName, long bytesOut, DateTime connectionTime, CancellationToken ct = default);
-    void RecordConnection(string remoteIp, string processName, long bytesOut, DateTime connectionTime);
+    Task<SecurityAlert[]> CheckAnomaliesAsync(string remoteIp, string processName, int port, long bytesOut, DateTime connectionTime, CancellationToken ct = default);
+    void RecordConnection(string remoteIp, string processName, int port, long bytesOut, DateTime connectionTime);
 }
 
 /// <summary>
@@ -32,8 +32,26 @@ public interface IIPCategorizationService
 /// </summary>
 public interface ISecurityScoringService
 {
-    Task<SecurityScore> CalculateScoreAsync(string ipAddress, IPCategory category, SecurityAlert[] alerts, CancellationToken ct = default);
+    Task<SecurityScore> CalculateScoreAsync(SecurityScoringContext context, IPCategory category, SecurityAlert[] alerts, CancellationToken ct = default);
 }
+
+/// <summary>
+/// Looks up threat intelligence for an IP address.
+/// </summary>
+public interface IThreatIntelligenceService
+{
+    Task<string?> LookupAsync(string ipAddress, CancellationToken ct = default);
+}
+
+/// <summary>
+/// Context for security scoring calculations.
+/// </summary>
+public record SecurityScoringContext(
+    string IpAddress,
+    string ProcessName,
+    int Port,
+    long BytesOut
+);
 
 /// <summary>
 /// Combined result from all security analysis services.
@@ -42,7 +60,8 @@ public record SecurityAnalysisResult(
     IPCategory Category,
     SecurityScore Score,
     SecurityAlert[] Alerts,
-    string Summary
+    string Summary,
+    string? ThreatIntel = null
 );
 
 public record IPCategory(
@@ -78,5 +97,9 @@ public enum AlertType
     TorConnection,
     MalwareIP,
     UnknownDestination,
-    PortScanning
+    PortScanning,
+    Beaconing,
+    AbnormalTrafficPattern,
+    DataExfiltration,
+    ProcessMasquerade
 }

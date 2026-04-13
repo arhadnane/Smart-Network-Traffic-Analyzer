@@ -175,7 +175,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             try
             {
                 var analysis = await _securityAnalysis.AnalyzeConnectionAsync(
-                    item.RemoteIp, item.ProcessName, item.RemotePort, item.BytesOut);
+                    item.RemoteIp, item.ProcessName, item.RemotePort, item.BytesOut, DateTime.UtcNow);
                 Application.Current?.Dispatcher.BeginInvoke(() =>
                 {
                     item.SecurityScore = analysis.Score.Value;
@@ -198,8 +198,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             var analysis = await _ollama.AnalyzeConnectionAsync(
                 connection.RemoteIp,
                 connection.ProcessName,
-                connection.Hostname,
-                connection.Country);
+                connection.Hostname ?? "N/A",
+                connection.Country ?? "N/A");
 
             await Application.Current.Dispatcher.BeginInvoke(() =>
             {
@@ -231,8 +231,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 
     #region Chart
 
-    private readonly LineSeries _series;
-    private readonly DateTimeAxis _timeAxis;
+    private LineSeries _series = null!;
+    private DateTimeAxis _timeAxis = null!;
 
     private void SetupChart()
     {

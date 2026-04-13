@@ -1,3 +1,5 @@
+using System.Net.Http;
+using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using SmartNetworkTrafficAnalyzer.Core.Abstractions;
 using SmartNetworkTrafficAnalyzer.Infrastructure.Services;
@@ -52,7 +54,7 @@ public partial class App : Application
         services.AddSingleton<IOllamaAnalysisService>(sp =>
         {
             var logger = sp.GetRequiredService<ILoggingService>();
-            return new OllamaAnalysisService(new HttpClient(), logger);
+            return new OllamaAnalysisService(new HttpClient(), logger, model: "glm-5.1:cloud");
         });
 
         Services = services.BuildServiceProvider();

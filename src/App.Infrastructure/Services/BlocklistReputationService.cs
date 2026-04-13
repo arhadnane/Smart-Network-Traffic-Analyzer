@@ -92,7 +92,7 @@ internal static class CidrMatcher
         prefix = 0;
         var parts = cidr.Split('/');
         return parts.Length == 2
-            && IPAddress.TryParse(parts[0], out network)
+            && IPAddress.TryParse(parts[0], out network!)
             && int.TryParse(parts[1], out prefix)
             && prefix is >= 0 and <= 128;
     }

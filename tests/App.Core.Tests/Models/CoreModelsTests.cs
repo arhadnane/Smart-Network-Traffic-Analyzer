@@ -1,3 +1,4 @@
+using SmartNetworkTrafficAnalyzer.Core.Abstractions;
 using SmartNetworkTrafficAnalyzer.Core.Models;
 using Xunit;
 
