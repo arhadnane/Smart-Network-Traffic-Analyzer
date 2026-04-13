@@ -2,32 +2,66 @@ using SmartNetworkTrafficAnalyzer.Core.Models;
 
 namespace SmartNetworkTrafficAnalyzer.Core.Abstractions;
 
+/// <summary>
+/// Performs security analysis on a network connection.
+/// </summary>
 public interface ISecurityAnalysisService
 {
-    Task<SecurityAnalysisResult> AnalyzeConnectionAsync(string remoteIp, string processName, int port);
+    Task<SecurityAnalysisResult> AnalyzeConnectionAsync(string remoteIp, string processName, int port, long bytesOut, DateTime connectionTime, CancellationToken ct = default);
 }
 
+/// <summary>
+/// Detects anomalous connection patterns over time.
+/// </summary>
 public interface IAnomalyDetectionService
 {
-    Task<SecurityAlert[]> CheckAnomaliesAsync(string remoteIp, string processName, long bytesOut, DateTime connectionTime);
-    void RecordConnection(string remoteIp, string processName, long bytesOut, DateTime connectionTime);
+    Task<SecurityAlert[]> CheckAnomaliesAsync(string remoteIp, string processName, int port, long bytesOut, DateTime connectionTime, CancellationToken ct = default);
+    void RecordConnection(string remoteIp, string processName, int port, long bytesOut, DateTime connectionTime);
 }
 
+/// <summary>
+/// Categorizes an IP address into a known service type.
+/// </summary>
 public interface IIPCategorizationService
 {
-    Task<IPCategory> CategorizeAsync(string ipAddress);
+    Task<IPCategory> CategorizeAsync(string ipAddress, CancellationToken ct = default);
 }
 
+/// <summary>
+/// Calculates a composite security score for a connection.
+/// </summary>
 public interface ISecurityScoringService
 {
-    Task<SecurityScore> CalculateScoreAsync(string ipAddress, IPCategory category, SecurityAlert[] alerts);
+    Task<SecurityScore> CalculateScoreAsync(SecurityScoringContext context, IPCategory category, SecurityAlert[] alerts, CancellationToken ct = default);
 }
 
+/// <summary>
+/// Looks up threat intelligence for an IP address.
+/// </summary>
+public interface IThreatIntelligenceService
+{
+    Task<string?> LookupAsync(string ipAddress, CancellationToken ct = default);
+}
+
+/// <summary>
+/// Context for security scoring calculations.
+/// </summary>
+public record SecurityScoringContext(
+    string IpAddress,
+    string ProcessName,
+    int Port,
+    long BytesOut
+);
+
+/// <summary>
+/// Combined result from all security analysis services.
+/// </summary>
 public record SecurityAnalysisResult(
     IPCategory Category,
     SecurityScore Score,
     SecurityAlert[] Alerts,
-    string Summary
+    string Summary,
+    string? ThreatIntel = null
 );
 
 public record IPCategory(
@@ -39,10 +73,10 @@ public record IPCategory(
 );
 
 public record SecurityScore(
-    int Value, // 0-100
+    int Value,
     RiskLevel Level,
     string Explanation,
-    Dictionary<string, double> FactorScores
+    IReadOnlyDictionary<string, double> FactorScores
 );
 
 public record SecurityAlert(
@@ -63,5 +97,9 @@ public enum AlertType
     TorConnection,
     MalwareIP,
     UnknownDestination,
-    PortScanning
+    PortScanning,
+    Beaconing,
+    AbnormalTrafficPattern,
+    DataExfiltration,
+    ProcessMasquerade
 }

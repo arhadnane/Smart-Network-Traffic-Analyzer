@@ -12,6 +12,9 @@ public enum Direction
     Outbound
 }
 
+/// <summary>
+/// Represents a single observed network connection.
+/// </summary>
 public record Connection(
     string Id,
     int SequentialId,

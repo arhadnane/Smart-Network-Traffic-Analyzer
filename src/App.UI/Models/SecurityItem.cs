@@ -1,9 +1,11 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using SmartNetworkTrafficAnalyzer.Infrastructure.Services;
 
 namespace SmartNetworkTrafficAnalyzer.UI.Models;
 
+/// <summary>
+/// UI model for security analysis display.
+/// </summary>
 public class SecurityItem : INotifyPropertyChanged
 {
     private string _ipAddress = string.Empty;
@@ -27,13 +29,13 @@ public class SecurityItem : INotifyPropertyChanged
     public int SecurityScore
     {
         get => _securityScore;
-        set { _securityScore = value; OnPropertyChanged(); }
+        set { _securityScore = value; OnPropertyChanged(); OnPropertyChanged(nameof(SecurityLevel)); }
     }
 
     public string SecurityLevel => _securityScore switch
     {
         >= 90 => "✅ Sûr",
-        >= 70 => "🟢 Légitime", 
+        >= 70 => "🟢 Légitime",
         >= 50 => "🟡 Neutre",
         >= 25 => "🟠 Suspect",
         _ => "🔴 Dangereux"

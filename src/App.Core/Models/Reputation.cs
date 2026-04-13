@@ -9,6 +9,9 @@ public enum RiskLevel
     Malicious
 }
 
+/// <summary>
+/// IP reputation check result aggregated from multiple providers.
+/// </summary>
 public record Reputation(
     string Ip,
     RiskLevel RiskLevel,

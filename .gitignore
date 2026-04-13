@@ -329,3 +329,20 @@ FodyWeavers.xsd
 *.cs~
 TestConnections.cs
 TestConnections.exe
+
+# Test results
+[Tt]est[Rr]esult*/
+*.trx
+coverage.cobertura.xml
+coverage.json
+coverage.xml
+coverage.info
+
+# Publish output
+publish/
+
+# IDE
+.idea/
+.vscode/
+*.user
+*.suo
