@@ -28,5 +28,9 @@ public record Connection(
     string ProcessName,
     int ProcessId,
     long BytesIn,
-    long BytesOut
+    long BytesOut,
+    string? ProcessPath = null,
+    string? ProcessDescription = null,
+    string? ProcessCompany = null,
+    string? ProcessWindowTitle = null
 );

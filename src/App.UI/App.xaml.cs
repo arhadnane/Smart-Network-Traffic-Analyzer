@@ -54,7 +54,15 @@ public partial class App : Application
         services.AddSingleton<IOllamaAnalysisService>(sp =>
         {
             var logger = sp.GetRequiredService<ILoggingService>();
-            return new OllamaAnalysisService(new HttpClient(), logger, model: "glm-5.1:cloud");
+            var settings = sp.GetRequiredService<ISettingsService>();
+            return new OllamaAnalysisService(new HttpClient(), logger, settings, model: OllamaAnalysisService.DefaultModel);
+        });
+
+        // IP scan service (ipwho.is — free, no API key)
+        services.AddSingleton<IIpScanService>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILoggingService>();
+            return new IpWhoIsScanService(new HttpClient(), logger);
         });
 
         Services = services.BuildServiceProvider();

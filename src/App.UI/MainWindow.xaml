@@ -5,8 +5,11 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:oxy="http://oxyplot.org/wpf"
         xmlns:viewModels="clr-namespace:SmartNetworkTrafficAnalyzer.UI.ViewModels"
+        xmlns:res="clr-namespace:SmartNetworkTrafficAnalyzer.UI.Resources"
+        xmlns:conv="clr-namespace:SmartNetworkTrafficAnalyzer.UI.Converters"
         mc:Ignorable="d"
-        Title="Smart Network Traffic Analyzer" Height="700" Width="1200"
+        Title="{Binding Source={x:Static res:Loc.I}, Path=AppTitle}"
+        Height="900" Width="1450"
         WindowStartupLocation="CenterScreen">
 
     <Window.DataContext>
@@ -14,6 +17,9 @@
     </Window.DataContext>
 
     <Window.Resources>
+        <conv:ProcessColorConverter x:Key="ProcessColorConverter"/>
+        <conv:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+
         <Style x:Key="HeaderLabel" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="FontSize" Value="14"/>
@@ -21,7 +27,7 @@
         </Style>
         <Style x:Key="DetailLabel" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="MinWidth" Value="90"/>
             <Setter Property="Margin" Value="0,2"/>
         </Style>
     </Window.Resources>
@@ -30,16 +36,26 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <!-- Header -->
         <DockPanel Grid.Row="0" Margin="12,8">
-            <TextBlock Text="🔍 Smart Network Traffic Analyzer" FontSize="20" FontWeight="Bold"/>
-            <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center"
-                       Text="{Binding TotalConnections, StringFormat='{}{0} connections'}"
-                       Foreground="Gray" Margin="0,0,8,0"/>
-            <Ellipse Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Source={x:Static res:Loc.I}, Path=AppTitle}"
+                       FontSize="20" FontWeight="Bold" DockPanel.Dock="Left"/>
+
+            <!-- Language toggle -->
+            <Button Content="{Binding Source={x:Static res:Loc.I}, Path=LanguageLabel}"
+                    Click="LanguageToggle_OnClick"
+                    DockPanel.Dock="Right"
+                    HorizontalAlignment="Right"
+                    Padding="10,4" Margin="8,0,0,0"
+                    FontWeight="Bold" FontSize="12"
+                    ToolTip="Toggle EN / FR"/>
+
+            <!-- Status LED -->
+            <Ellipse Width="10" Height="10" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0">
                 <Ellipse.Style>
                     <Style TargetType="Ellipse">
                         <Setter Property="Fill" Value="Gray"/>
@@ -51,21 +67,69 @@
                     </Style>
                 </Ellipse.Style>
             </Ellipse>
+
+            <!-- Connection count -->
+            <TextBlock DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center"
+                       Foreground="Gray" Margin="0,0,4,0">
+                <TextBlock.Text>
+                    <MultiBinding StringFormat="{}{0} {1}">
+                        <Binding Path="TotalConnections"/>
+                        <Binding Source="{x:Static res:Loc.I}" Path="ConnectionsUnit"/>
+                    </MultiBinding>
+                </TextBlock.Text>
+            </TextBlock>
         </DockPanel>
 
         <!-- Separator -->
         <Separator Grid.Row="1" Margin="12,0"/>
 
+        <!-- Toolbar: Search + Summary -->
+        <DockPanel Grid.Row="2" Margin="12,6">
+            <Button Content="{Binding Source={x:Static res:Loc.I}, Path=SummaryBtn}"
+                    Click="Summary_OnClick"
+                    DockPanel.Dock="Right"
+                    Padding="12,5" Margin="8,0,0,0"
+                    FontWeight="SemiBold"/>
+            <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=250}"
+                     VerticalContentAlignment="Center"
+                     Padding="6,4"
+                     FontSize="13"
+                     Tag="{Binding Source={x:Static res:Loc.I}, Path=SearchPlaceholder}">
+                <TextBox.Style>
+                    <Style TargetType="TextBox">
+                        <Style.Triggers>
+                            <Trigger Property="Text" Value="">
+                                <Setter Property="Background">
+                                    <Setter.Value>
+                                        <VisualBrush AlignmentX="Left" AlignmentY="Center" Stretch="None">
+                                            <VisualBrush.Visual>
+                                                <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource AncestorType=TextBox}}"
+                                                           Foreground="Gray" Margin="8,0,0,0" FontSize="13"/>
+                                            </VisualBrush.Visual>
+                                        </VisualBrush>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="Background" Value="White"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBox.Style>
+            </TextBox>
+        </DockPanel>
+
         <!-- Main Content -->
-        <Grid Grid.Row="2" Margin="12,8">
+        <Grid Grid.Row="3" Margin="12,8">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="400"/>
+                <ColumnDefinition Width="*" MinWidth="300"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="480" MinWidth="280"/>
             </Grid.ColumnDefinitions>
 
             <!-- Connection Grid -->
             <DataGrid Grid.Column="0"
-                      ItemsSource="{Binding Connections}"
+                      ItemsSource="{Binding ConnectionsView}"
                       AutoGenerateColumns="False"
                       IsReadOnly="True"
                       Name="grid"
@@ -74,87 +138,264 @@
                       AlternatingRowBackground="#F8F9FA"
                       GridLinesVisibility="Horizontal">
 
+                <!-- Row style: subtle process-based background color -->
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="Background"
+                                Value="{Binding ProcessName, Converter={StaticResource ProcessColorConverter}}"/>
+                    </Style>
+                </DataGrid.RowStyle>
+
+                <!-- Context menu -->
+                <DataGrid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="{Binding Source={x:Static res:Loc.I}, Path=CopyIp}" Click="CopyIp_OnClick"/>
+                        <MenuItem Header="{Binding Source={x:Static res:Loc.I}, Path=CopyHostname}" Click="CopyHostname_OnClick"/>
+                        <Separator/>
+                        <MenuItem Header="{Binding Source={x:Static res:Loc.I}, Path=CopyProcessName}" Click="CopyProcessName_OnClick"/>
+                        <MenuItem Header="{Binding Source={x:Static res:Loc.I}, Path=CopyPid}" Click="CopyPid_OnClick"/>
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
+
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="#" Binding="{Binding SequentialId}" Width="45"/>
-                    <DataGridTextColumn Header="First Seen" Binding="{Binding FirstSeen, StringFormat='{}{0:HH:mm:ss}'}" Width="75"/>
-                    <DataGridTextColumn Header="Dir" Binding="{Binding Direction}" Width="50"/>
-                    <DataGridTextColumn Header="Remote IP" Binding="{Binding RemoteIp}" Width="110"/>
-                    <DataGridTextColumn Header="Hostname" Binding="{Binding Hostname}" Width="130"/>
-                    <DataGridTextColumn Header="Country" Binding="{Binding Country}" Width="55"/>
-                    <DataGridTextColumn Header="Port" Binding="{Binding RemotePort}" Width="50"/>
-                    <DataGridTextColumn Header="Risk" Binding="{Binding RiskDisplay}" Width="85"/>
-                    <DataGridTextColumn Header="Category" Binding="{Binding SecurityCategory}" Width="100"/>
-                    <DataGridTextColumn Header="Score" Binding="{Binding SecurityLevel}" Width="70"/>
-                    <DataGridTextColumn Header="Process" Binding="{Binding ProcessName}" Width="90"/>
-                    <DataGridTextColumn Header="In" Binding="{Binding BytesInFormatted}" Width="65"/>
-                    <DataGridTextColumn Header="Out" Binding="{Binding BytesOutFormatted}" Width="65"/>
+                    <DataGridTextColumn Width="40">
+                        <DataGridTextColumn.Header><TextBlock Text="#"/></DataGridTextColumn.Header>
+                        <DataGridTextColumn.Binding><Binding Path="SequentialId"/></DataGridTextColumn.Binding>
+                    </DataGridTextColumn>
+
+                    <DataGridTextColumn Width="75">
+                        <DataGridTextColumn.Header>
+                            <TextBlock Text="{Binding Source={x:Static res:Loc.I}, Path=HdrFirstSeen}"/>
+                        </DataGridTextColumn.Header>
+                        <DataGridTextColumn.Binding>
+                            <Binding Path="FirstSeen" StringFormat="{}{0:HH:mm:ss}"/>
+                        </DataGridTextColumn.Binding>
+                    </DataGridTextColumn>
+
+                    <DataGridTextColumn Width="45">
+                        <DataGridTextColumn.Header>
+                            <TextBlock Text="{Binding Source={x:Static res:Loc.I}, Path=HdrDir}"/>
+                        </DataGridTextColumn.Header>
+                        <DataGridTextColumn.Binding><Binding Path="Direction"/></DataGridTextColumn.Binding>
+                    </DataGridTextColumn>
+
+                    <DataGridTextColumn Width="110">
+                        <DataGridTextColumn.Header>
+                            <TextBlock Text="{Binding Source={x:Static res:Loc.I}, Path=HdrRemoteIp}"/>
+                        </DataGridTextColumn.Header>
+                        <DataGridTextColumn.Binding><Binding Path="RemoteIp"/></DataGridTextColumn.Binding>
+                    </DataGridTextColumn>
+
+                    <DataGridTextColumn Width="120">
+                        <DataGridTextColumn.Header>
+                            <TextBlock Text="{Binding Source={x:Static res:Loc.I}, Path=HdrHostname}"/>
+                        </DataGridTextColumn.Header>
+                        <DataGridTextColumn.Binding><Binding Path="Hostname"/></DataGridTextColumn.Binding>
+                    </DataGridTextColumn>
+
+                    <DataGridTextColumn Width="55">
+                        <DataGridTextColumn.Header>
+                            <TextBlock Text="{Binding Source={x:Static res:Loc.I}, Path=HdrCountry}"/>
+                        </DataGridTextColumn.Header>
+                        <DataGridTextColumn.Binding><Binding Path="Country"/></DataGridTextColumn.Binding>
+                    </DataGridTextColumn>
+
+                    <DataGridTextColumn Width="50">
+                        <DataGridTextColumn.Header>
+                            <TextBlock Text="{Binding Source={x:Static res:Loc.I}, Path=HdrPort}"/>
+                        </DataGridTextColumn.Header>
+                        <DataGridTextColumn.Binding><Binding Path="RemotePort"/></DataGridTextColumn.Binding>
+                    </DataGridTextColumn>
+
+                    <DataGridTextColumn Width="85">
+                        <DataGridTextColumn.Header>
+                            <TextBlock Text="{Binding Source={x:Static res:Loc.I}, Path=HdrRisk}"/>
+                        </DataGridTextColumn.Header>
+                        <DataGridTextColumn.Binding><Binding Path="RiskDisplay"/></DataGridTextColumn.Binding>
+                    </DataGridTextColumn>
+
+                    <DataGridTextColumn Width="95">
+                        <DataGridTextColumn.Header>
+                            <TextBlock Text="{Binding Source={x:Static res:Loc.I}, Path=HdrCategory}"/>
+                        </DataGridTextColumn.Header>
+                        <DataGridTextColumn.Binding><Binding Path="SecurityCategory"/></DataGridTextColumn.Binding>
+                    </DataGridTextColumn>
+
+                    <DataGridTextColumn Width="70">
+                        <DataGridTextColumn.Header>
+                            <TextBlock Text="{Binding Source={x:Static res:Loc.I}, Path=HdrScore}"/>
+                        </DataGridTextColumn.Header>
+                        <DataGridTextColumn.Binding><Binding Path="SecurityLevel"/></DataGridTextColumn.Binding>
+                    </DataGridTextColumn>
+
+                    <!-- Process column with icon + name -->
+                    <DataGridTextColumn Width="120">
+                        <DataGridTextColumn.Header>
+                            <TextBlock Text="{Binding Source={x:Static res:Loc.I}, Path=HdrProcess}"/>
+                        </DataGridTextColumn.Header>
+                        <DataGridTextColumn.Binding><Binding Path="ProcessDisplay"/></DataGridTextColumn.Binding>
+                    </DataGridTextColumn>
+
+                    <DataGridTextColumn Header="In" Binding="{Binding BytesInFormatted}" Width="60"/>
+                    <DataGridTextColumn Header="Out" Binding="{Binding BytesOutFormatted}" Width="60"/>
                 </DataGrid.Columns>
             </DataGrid>
 
+            <!-- GridSplitter for resizable right panel -->
+            <GridSplitter Grid.Column="1"
+                          Width="5"
+                          HorizontalAlignment="Stretch"
+                          Background="#DEE2E6"
+                          Cursor="SizeWE"
+                          ResizeBehavior="PreviousAndNext"/>
+
             <!-- Right Panel -->
-            <Grid Grid.Column="1" Margin="12,0,0,0">
+            <Grid Grid.Column="2" Margin="8,0,0,0">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="180"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="160"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
+                <!-- Ollama Model Selection -->
+                <Border BorderBrush="#DEE2E6" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,6">
+                    <StackPanel>
+                        <TextBlock Text="{Binding Source={x:Static res:Loc.I}, Path=OllamaModel}"
+                                   Style="{StaticResource HeaderLabel}" Margin="0,0,0,4"/>
+                        <ComboBox ItemsSource="{Binding AvailableOllamaModels}"
+                                  DropDownOpened="OllamaModelComboBox_OnDropDownOpened"
+                                  SelectedItem="{Binding SelectedOllamaModel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  MinWidth="200"/>
+                        <TextBlock Text="{Binding OllamaModelsStatus}" Foreground="Gray" Margin="0,4,0,0"/>
+                        <TextBlock Text="{Binding Source={x:Static res:Loc.I}, Path=ModelHint}"
+                                   Foreground="Gray" TextWrapping="Wrap" Margin="0,2,0,0" FontSize="11"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- Bandwidth Chart -->
-                <Border BorderBrush="#DEE2E6" BorderThickness="1" CornerRadius="4" Margin="0,0,0,8">
+                <Border Grid.Row="1" BorderBrush="#DEE2E6" BorderThickness="1" CornerRadius="4" Margin="0,0,0,6">
                     <oxy:PlotView Model="{Binding BandwidthModel}"/>
                 </Border>
 
                 <!-- Details Panel -->
-                <Border Grid.Row="1" BorderBrush="#DEE2E6" BorderThickness="1" CornerRadius="4" Padding="12">
+                <Border Grid.Row="2" BorderBrush="#DEE2E6" BorderThickness="1" CornerRadius="4" Padding="10">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel>
                             <!-- Connection Details -->
-                            <TextBlock Text="📋 Connection Details" Style="{StaticResource HeaderLabel}"/>
+                            <TextBlock Text="{Binding Source={x:Static res:Loc.I}, Path=ConnectionDetails}"
+                                       Style="{StaticResource HeaderLabel}"/>
 
-                            <StackPanel Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="🌐 IP:" Style="{StaticResource DetailLabel}"/>
-                                <TextBlock Text="{Binding ElementName=grid, Path=SelectedItem.RemoteIp}"/>
-                            </StackPanel>
+                            <Grid Margin="0,2,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
 
-                            <StackPanel Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="🏠 Hostname:" Style="{StaticResource DetailLabel}"/>
-                                <TextBlock Text="{Binding ElementName=grid, Path=SelectedItem.Hostname}"/>
-                            </StackPanel>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Source={x:Static res:Loc.I}, Path=LblIp}" Style="{StaticResource DetailLabel}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ElementName=grid, Path=SelectedItem.RemoteIp}" Margin="4,2"/>
 
-                            <StackPanel Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="🌍 Country:" Style="{StaticResource DetailLabel}"/>
-                                <TextBlock Text="{Binding ElementName=grid, Path=SelectedItem.Country}"/>
-                            </StackPanel>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding Source={x:Static res:Loc.I}, Path=LblHost}" Style="{StaticResource DetailLabel}" Margin="10,2,0,2"/>
+                                <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding ElementName=grid, Path=SelectedItem.Hostname}" Margin="4,2" TextTrimming="CharacterEllipsis"/>
 
-                            <StackPanel Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="⚙️ Process:" Style="{StaticResource DetailLabel}"/>
-                                <TextBlock Text="{Binding ElementName=grid, Path=SelectedItem.ProcessName}"/>
-                            </StackPanel>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding Source={x:Static res:Loc.I}, Path=LblCountry}" Style="{StaticResource DetailLabel}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ElementName=grid, Path=SelectedItem.Country}" Margin="4,2"/>
 
-                            <StackPanel Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="⚠️ Risk:" Style="{StaticResource DetailLabel}"/>
-                                <TextBlock Text="{Binding ElementName=grid, Path=SelectedItem.RiskDisplay}"/>
-                            </StackPanel>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding Source={x:Static res:Loc.I}, Path=LblRisk}" Style="{StaticResource DetailLabel}" Margin="10,2,0,2"/>
+                                <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding ElementName=grid, Path=SelectedItem.RiskDisplay}" Margin="4,2"/>
 
-                            <StackPanel Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="🏷️ Category:" Style="{StaticResource DetailLabel}"/>
-                                <TextBlock Text="{Binding ElementName=grid, Path=SelectedItem.SecurityCategory}"/>
-                            </StackPanel>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding Source={x:Static res:Loc.I}, Path=LblCategory}" Style="{StaticResource DetailLabel}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ElementName=grid, Path=SelectedItem.SecurityCategory}" Margin="4,2"/>
 
-                            <StackPanel Orientation="Horizontal" Margin="0,2">
-                                <TextBlock Text="📊 Score:" Style="{StaticResource DetailLabel}"/>
-                                <TextBlock Text="{Binding ElementName=grid, Path=SelectedItem.SecurityLevel}"/>
-                            </StackPanel>
+                                <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding Source={x:Static res:Loc.I}, Path=LblScore}" Style="{StaticResource DetailLabel}" Margin="10,2,0,2"/>
+                                <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding ElementName=grid, Path=SelectedItem.SecurityLevel}" Margin="4,2"/>
+                            </Grid>
+
+                            <Separator Margin="0,2"/>
+
+                            <!-- Process Details -->
+                            <TextBlock Text="{Binding Source={x:Static res:Loc.I}, Path=ProcessDetails}"
+                                       Style="{StaticResource HeaderLabel}" Margin="0,6,0,4"/>
+
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Source={x:Static res:Loc.I}, Path=LblProcess}" Style="{StaticResource DetailLabel}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ElementName=grid, Path=SelectedItem.ProcessDisplay}" Margin="4,2"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding Source={x:Static res:Loc.I}, Path=LblPid}" Style="{StaticResource DetailLabel}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ElementName=grid, Path=SelectedItem.ProcessId}" Margin="4,2"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding Source={x:Static res:Loc.I}, Path=LblDescription}" Style="{StaticResource DetailLabel}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ElementName=grid, Path=SelectedItem.ProcessDescription, TargetNullValue='-'}" Margin="4,2" TextTrimming="CharacterEllipsis"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="{Binding Source={x:Static res:Loc.I}, Path=LblPublisher}" Style="{StaticResource DetailLabel}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ElementName=grid, Path=SelectedItem.ProcessCompany, TargetNullValue='-'}" Margin="4,2" TextTrimming="CharacterEllipsis"/>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="{Binding Source={x:Static res:Loc.I}, Path=LblPath}" Style="{StaticResource DetailLabel}"/>
+                                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding ElementName=grid, Path=SelectedItem.ProcessPath, TargetNullValue='-'}" Margin="4,2" TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding ElementName=grid, Path=SelectedItem.ProcessPath}"/>
+
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="{Binding Source={x:Static res:Loc.I}, Path=LblWindowTitle}" Style="{StaticResource DetailLabel}"/>
+                                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding ElementName=grid, Path=SelectedItem.ProcessWindowTitle, TargetNullValue='-'}" Margin="4,2" TextWrapping="Wrap"
+                                           Foreground="#0066CC" FontWeight="SemiBold"/>
+                            </Grid>
+
+                            <Separator Margin="0,4"/>
+
+                            <!-- Ollama Analysis -->
+                            <DockPanel Margin="0,8,0,4">
+                                <TextBlock Text="{Binding Source={x:Static res:Loc.I}, Path=AiAnalysis}"
+                                           Style="{StaticResource HeaderLabel}" DockPanel.Dock="Left"/>
+                                <Button Content="{Binding Source={x:Static res:Loc.I}, Path=ReanalyzeBtn}"
+                                        Click="ReanalyzeSelection_OnClick"
+                                        DockPanel.Dock="Right"
+                                        HorizontalAlignment="Right"
+                                        Padding="10,4" FontSize="11"/>
+                            </DockPanel>
+                            <TextBlock Text="{Binding ElementName=grid, Path=SelectedItem.OllamaModelUsed, StringFormat='Model: {0}'}"
+                                       Foreground="Gray" FontSize="11" Margin="0,0,0,4"/>
+                            <Border Background="#F8F9FA" BorderBrush="#DEE2E6" BorderThickness="1"
+                                    Padding="10" CornerRadius="4">
+                                <TextBlock Text="{Binding ElementName=grid, Path=SelectedItem.OllamaAnalysis}"
+                                           TextWrapping="Wrap" FontFamily="Segoe UI" FontSize="12" LineHeight="20"/>
+                            </Border>
 
                             <Separator Margin="0,8"/>
 
-                            <!-- Ollama Analysis -->
-                            <TextBlock Text="🤖 AI Analysis" Style="{StaticResource HeaderLabel}"/>
-                            <Border Background="#F8F9FA" BorderBrush="#DEE2E6" BorderThickness="1"
-                                    Padding="8" CornerRadius="4">
-                                <TextBlock Text="{Binding ElementName=grid, Path=SelectedItem.OllamaAnalysis}"
-                                           TextWrapping="Wrap"
-                                           FontFamily="Segoe UI"
-                                           LineHeight="20"/>
+                            <!-- IP Scan -->
+                            <DockPanel Margin="0,4,0,4">
+                                <TextBlock Text="{Binding Source={x:Static res:Loc.I}, Path=IpScanTitle}"
+                                           Style="{StaticResource HeaderLabel}" DockPanel.Dock="Left"/>
+                                <Button Content="{Binding Source={x:Static res:Loc.I}, Path=ScanIpBtn}"
+                                        Click="ScanIp_OnClick"
+                                        DockPanel.Dock="Right"
+                                        HorizontalAlignment="Right"
+                                        Padding="10,4" FontSize="11"/>
+                            </DockPanel>
+                            <Border Background="#F0F8FF" BorderBrush="#DEE2E6" BorderThickness="1"
+                                    Padding="10" CornerRadius="4"
+                                    Visibility="{Binding ElementName=grid, Path=SelectedItem.IpScanInfo, Converter={StaticResource StringToVisibilityConverter}}">
+                                <TextBlock Text="{Binding ElementName=grid, Path=SelectedItem.IpScanInfo}"
+                                           TextWrapping="Wrap" FontFamily="Segoe UI" FontSize="12" LineHeight="20"/>
                             </Border>
                         </StackPanel>
                     </ScrollViewer>

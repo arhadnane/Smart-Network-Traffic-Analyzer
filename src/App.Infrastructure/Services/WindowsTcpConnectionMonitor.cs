@@ -48,8 +48,8 @@ public sealed class WindowsTcpConnectionMonitor : IConnectionMonitor
                         continue;
                     }
 
-                    var processName = GetProcessName(tcp.ProcessId);
-                    var (bytesIn, bytesOut) = EstimateTraffic(tcp.ProcessId, processName);
+                    var processInfo = GetProcessInfo(tcp.ProcessId);
+                    var (bytesIn, bytesOut) = EstimateTraffic(tcp.ProcessId, processInfo.Name);
                     var sequentialId = Interlocked.Increment(ref _nextSequentialId);
 
                     var conn = new Connection(
@@ -62,10 +62,14 @@ public sealed class WindowsTcpConnectionMonitor : IConnectionMonitor
                         RemoteIp: tcp.RemoteAddress.ToString(),
                         RemotePort: tcp.RemotePort,
                         Protocol: Protocol.Tcp,
-                        ProcessName: processName,
+                        ProcessName: processInfo.Name,
                         ProcessId: (int)tcp.ProcessId,
                         BytesIn: bytesIn,
-                        BytesOut: bytesOut
+                        BytesOut: bytesOut,
+                        ProcessPath: processInfo.Path,
+                        ProcessDescription: processInfo.Description,
+                        ProcessCompany: processInfo.Company,
+                        ProcessWindowTitle: processInfo.WindowTitle
                     );
 
                     if (seen.TryAdd(key, conn))
@@ -100,6 +104,88 @@ public sealed class WindowsTcpConnectionMonitor : IConnectionMonitor
         {
             return "unknown";
         }
+    }
+
+    private sealed record ProcessInfo(string Name, string? Path, string? Description, string? Company, string? WindowTitle);
+
+    private static ProcessInfo GetProcessInfo(uint processId)
+    {
+        try
+        {
+            if (processId == 0)
+                return new ProcessInfo("System", null, "NT Kernel & System", "Microsoft Corporation", null);
+
+            using var process = Process.GetProcessById((int)processId);
+            var name = process.ProcessName;
+            string? path = null, description = null, company = null, windowTitle = null;
+
+            try
+            {
+                var module = process.MainModule;
+                if (module is not null)
+                {
+                    path = module.FileName;
+                    var vi = module.FileVersionInfo;
+                    description = vi.FileDescription;
+                    company = vi.CompanyName;
+                }
+            }
+            catch { /* Access denied for some system processes */ }
+
+            try
+            {
+                var title = process.MainWindowTitle;
+                if (!string.IsNullOrWhiteSpace(title))
+                {
+                    windowTitle = title;
+                }
+                else
+                {
+                    // Multi-process apps (Chrome, Edge, Firefox…): the network child
+                    // process has no window — find a sibling process with a visible title.
+                    windowTitle = FindWindowTitleForProcess(name);
+                }
+            }
+            catch { }
+
+            return new ProcessInfo(name, path, description, company, windowTitle);
+        }
+        catch
+        {
+            return new ProcessInfo("unknown", null, null, null, null);
+        }
+    }
+
+    /// <summary>
+    /// For multi-process apps (browsers, Electron apps), find the sibling process
+    /// with the same name that owns a visible main window and return its title.
+    /// </summary>
+    private static string? FindWindowTitleForProcess(string processName)
+    {
+        try
+        {
+            var siblings = Process.GetProcessesByName(processName);
+            try
+            {
+                foreach (var sibling in siblings)
+                {
+                    try
+                    {
+                        var title = sibling.MainWindowTitle;
+                        if (!string.IsNullOrWhiteSpace(title))
+                            return title;
+                    }
+                    catch { }
+                }
+            }
+            finally
+            {
+                foreach (var s in siblings) s.Dispose();
+            }
+        }
+        catch { }
+
+        return null;
     }
 
     private static (long BytesIn, long BytesOut) EstimateTraffic(uint processId, string processName)
