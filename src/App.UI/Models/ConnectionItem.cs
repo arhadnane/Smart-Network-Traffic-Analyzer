@@ -13,6 +13,8 @@ public sealed class ConnectionItem : INotifyPropertyChanged
     private string? _country;
     private RiskLevel _risk;
     private string? _ollamaAnalysis;
+    private string? _ollamaModelUsed;
+    private string? _ipScanInfo;
     private int _securityScore;
     private string _securityCategory = string.Empty;
 
@@ -31,6 +33,10 @@ public sealed class ConnectionItem : INotifyPropertyChanged
         ProcessId = c.ProcessId;
         BytesIn = c.BytesIn;
         BytesOut = c.BytesOut;
+        ProcessPath = c.ProcessPath;
+        ProcessDescription = c.ProcessDescription;
+        ProcessCompany = c.ProcessCompany;
+        ProcessWindowTitle = c.ProcessWindowTitle;
     }
 
     public string Id { get; }
@@ -46,6 +52,10 @@ public sealed class ConnectionItem : INotifyPropertyChanged
     public int ProcessId { get; }
     public long BytesIn { get; }
     public long BytesOut { get; }
+    public string? ProcessPath { get; }
+    public string? ProcessDescription { get; }
+    public string? ProcessCompany { get; }
+    public string? ProcessWindowTitle { get; }
 
     public RiskLevel Risk
     {
@@ -80,6 +90,43 @@ public sealed class ConnectionItem : INotifyPropertyChanged
         get => _ollamaAnalysis;
         set { if (_ollamaAnalysis != value) { _ollamaAnalysis = value; Raise(); } }
     }
+
+    public string? OllamaModelUsed
+    {
+        get => _ollamaModelUsed;
+        set { if (_ollamaModelUsed != value) { _ollamaModelUsed = value; Raise(); } }
+    }
+
+    public string? IpScanInfo
+    {
+        get => _ipScanInfo;
+        set { if (_ipScanInfo != value) { _ipScanInfo = value; Raise(); } }
+    }
+
+    public string ProcessIcon => (ProcessName ?? "").ToLowerInvariant() switch
+    {
+        var n when n.Contains("chrome") || n.Contains("chromium") => "🌐",
+        var n when n.Contains("msedge") || n.Contains("edge") => "🌐",
+        var n when n.Contains("firefox") => "🦊",
+        var n when n.Contains("svchost") => "⚙️",
+        var n when n is "system" or "ntoskrnl" => "🖥️",
+        var n when n.Contains("explorer") => "📁",
+        var n when n.Contains("searchhost") || n.Contains("searchapp") => "🔍",
+        var n when n.Contains("teams") || n.Contains("msteams") => "💬",
+        var n when n.Contains("discord") => "💬",
+        var n when n.Contains("slack") => "💬",
+        var n when n.Contains("outlook") || n.Contains("thunderbird") => "📧",
+        var n when n.Contains("spotify") => "🎵",
+        var n when n.Contains("steam") || n.Contains("epicgames") => "🎮",
+        var n when n.Contains("onedrive") || n.Contains("dropbox") => "☁️",
+        var n when n.Contains("code") || n.Contains("devenv") || n.Contains("rider") => "💻",
+        var n when n.Contains("defender") || n.Contains("msmpeng") => "🛡️",
+        var n when n.Contains("node") || n.Contains("python") || n.Contains("dotnet") => "⚡",
+        var n when n.Contains("sql") || n.Contains("postgres") || n.Contains("mysql") => "🗄️",
+        _ => "📋"
+    };
+
+    public string ProcessDisplay => $"{ProcessIcon} {ProcessName}";
 
     public int SecurityScore
     {
